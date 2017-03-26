@@ -1,0 +1,102 @@
+#AUTHORS: Alexey Uvarov, Menyailov Pavel
+
+import Orange.base
+import numpy as np
+import random
+
+def SlopeOnePrediction(scoreMatrix):
+    resultMatrix = scoreMatrix[:]
+    #поиск нулувых значений
+    for i in range(len(scoreMatrix)): 
+        for j in range(len(scoreMatrix[i])):
+            if scoreMatrix[i][j] == 0:
+                
+                #Предсказываем элемент в позиции [юзер][предмет]
+                elementScore = 0;
+                
+                #k - проход по предметам
+                for k in range(len(scoreMatrix[i])):
+                    subScores = [];
+                    
+                    if k == j:
+                        continue
+                    else:
+                        subSum = [];
+                        average = 0;
+                        for l in range(len(scoreMatrix)):
+                            if (scoreMatrix[l][k] != 0)or(scoreMatrix[l][j]!= 0) or (l!=i):
+                                subSum.append(scoreMatrix[l][j] - scoreMatrix[l][k])          
+                                
+                        if len(subSum)!= 0 :
+                            average = sum(subSum)/len(subSum)  
+                                  
+                        subScores.append(scoreMatrix[i][k] + average)
+                        
+                if len(subScores) != 0:
+                    elementScore = sum(subScores)/len(subScores)
+                    
+                resultMatrix[i][j]= elementScore                                
+    return resultMatrix        
+
+from Orange.data import Domain, Table, Instance
+new_data = in_data.copy()
+scores = []
+persons = []
+movies = []
+
+MaxScore = 0;
+MinScore = 1;
+
+#создаем массивы для категорий
+for inst in new_data:
+        scores.append(inst['score'])
+        persons.append(inst['user'])
+        movies.append(inst['movie'])
+
+#создание множества из массивов
+PersonSet = set(persons)
+MovieSet = set(movies)
+persons = list(PersonSet)
+movies = list(MovieSet)
+
+#Создание матрицы [user][item] и заполнение данными из таблицы
+scoreMatrix = np.zeros([len(persons), len(movies)])
+for inst in new_data:
+        scoreMatrix[persons.index(inst['user'])][movies.index(inst['movie'])] = inst['score']        
+
+predictedScoreMatrix = SlopeOnePrediction(scoreMatrix)
+
+print('Predicted')
+print(predictedScoreMatrix)
+
+MaxScore = max(scores)
+MinScore = min(scores)
+
+randomNumber = random.uniform(MinScore, MaxScore)
+print(randomNumber)
+
+
+scoreDomain = Orange.data.ContinuousVariable("score")
+movieDomain = Orange.data.DiscreteVariable("movie",movies)
+userDomain = Orange.data.DiscreteVariable("user",persons)
+
+
+domain = Orange.data.Domain([scoreDomain, movieDomain], userDomain)
+
+instances = []
+usersForTarget = []
+
+
+for i in range(len(predictedScoreMatrix)):
+    for j in range(len(predictedScoreMatrix[i])):
+        inst =  [predictedScoreMatrix[i][j], j]
+        instances.append(inst)
+        usersForTarget.append(i)
+
+print(instances)
+X = np.array(instances)
+Y = np.array(usersForTarget)
+
+data = Orange.data.Table(domain, X, Y)
+                     
+out_data = data
